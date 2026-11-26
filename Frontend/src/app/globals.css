@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+
+html, body { background: #ffffff; }
+body {
+  @apply font-sans text-slate-700 antialiased;
+}
+
+::selection { background: rgba(2, 116, 251, 0.2); }
+* { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+@layer components {
+  .card { @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm; }
+  .label { @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-slate-500; }
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800
+      placeholder:text-slate-400 outline-none transition focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20;
+  }
+  .th { @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500; }
+  .td { @apply px-4 py-3 text-sm text-slate-700; }
+}
+
+.text-white { color: #0f172a; }
+.text-slate-100 { color: #1e293b; }
+.text-slate-200 { color: #334155; }
+.text-slate-300 { color: #475569; }
+.text-slate-400 { color: #64748b; }
+.text-slate-500 { color: #64748b; }
+.text-brand-300,
+.text-brand-400,
+.text-brand-500 { color: #0274FB; }
+.text-emerald-300 { color: #047857; }
+.text-rose-300 { color: #be123c; }
+.text-amber-300 { color: #b45309; }
