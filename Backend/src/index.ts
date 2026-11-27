@@ -57,6 +57,18 @@ function oneOf<T extends string>(v: unknown, allowed: readonly T[], name: string
   if (typeof v !== "string" || !allowed.includes(v as T)) throw badRequest(`${name} must be one of: ${allowed.join(", ")}`);
   return v as T;
 }
+function requiredText(v: unknown, name: string, max = 5000) {
+  const value = str(v);
+  if (!value) throw badRequest(`${name} is required`);
+  if (value.length > max) throw badRequest(`${name} must be ${max} characters or fewer`);
+  return value;
+}
+function optionalText(v: unknown, name: string, max = 5000) {
+  if (typeof v !== "string") throw badRequest(`${name} must be text`);
+  const value = v.trim();
+  if (value.length > max) throw badRequest(`${name} must be ${max} characters or fewer`);
+  return value;
+}
 
 /** The signed-in user's own employee id, or 403 if the login is not linked to one. */
 function ownEmployeeId(req: Request) {
@@ -103,6 +115,11 @@ const PAY_STATUSES = ["draft", "approved", "paid"] as const;
 const CONTRACT_KINDS = ["Employment Contract", "Amendment", "NDA", "Other"] as const;
 const COMMISSION_KINDS = ["first_sale", "second_sale", "operation"] as const;
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"] as const;
+const JOB_TYPES = ["full_time", "part_time", "contract", "internship"] as const;
+const JOB_STATUSES = ["draft", "open", "closed"] as const;
+const CANDIDATE_STAGES = ["applied", "screening", "interview", "offer", "hired", "rejected"] as const;
+const INTERVIEW_TYPES = ["video", "phone", "onsite"] as const;
+const INTERVIEW_STATUSES = ["scheduled", "completed", "cancelled"] as const;
 
 /* -------------------------------------------------------------- leave rules */
 // Must match Frontend/src/domain/policy.ts.
@@ -703,7 +720,7 @@ async function emailPayslip(kind: PayKind, lineId: string, actor: { name: string
 
   const employee = { name: l.name, code: l.code, position: l.position, department: l.department };
   const slip = kind === "salary" ? salaryPayslip(l, employee) : teacherPayslip(l, employee);
-  const mail = renderPayslipEmail({ ...slip, company: COMPANY_NAME });
+  const mail = renderPayslipEmail({ ...slip, company: COMPANY_NAME, recipientEmail: l.email });
   try {
     await sendMail({ to: l.email, subject: mail.subject, html: mail.html, text: mail.text, replyTo: actor.email });
   } catch (e) {
@@ -802,6 +819,177 @@ app.delete("/api/commissions/:id", requireRole("superadmin", "admin"), h(async (
   if (!r.rowCount) throw new HttpError(404, "Commission not found");
   await audit(req.user!.name, "Deleted commission", r.rows[0].customer);
   res.status(204).end();
+}));
+
+/* ------------------------------------------------------------- recruitment */
+
+const RECRUITMENT_JOB_COLS = `id,title,department,location,employment_type as "employmentType",description,requirements,status,
+  created_by as "createdBy",created_at as "createdAt",updated_at as "updatedAt"`;
+const RECRUITMENT_CANDIDATE_COLS = `c.id,c.job_id as "jobId",j.title as "jobTitle",c.name,c.email,c.phone,c.source,c.stage,c.notes,
+  c.created_at as "createdAt",c.updated_at as "updatedAt"`;
+const RECRUITMENT_INTERVIEW_COLS = `i.id,i.candidate_id as "candidateId",c.name as "candidateName",j.title as "jobTitle",
+  i.interviewer,i.scheduled_at as "scheduledAt",i.meeting_type as "meetingType",i.status,i.notes,
+  i.created_at as "createdAt",i.updated_at as "updatedAt"`;
+
+app.get("/api/recruitment/jobs", requireRole("superadmin", "admin"), h(async (_req, res) => {
+  const r = await pool.query(
+    `select ${RECRUITMENT_JOB_COLS} from recruitment_jobs
+     order by case status when 'open' then 0 when 'draft' then 1 else 2 end, created_at desc`,
+  );
+  res.json(r.rows);
+}));
+
+app.post("/api/recruitment/jobs", requireRole("superadmin", "admin"), h(async (req, res) => {
+  const b = req.body ?? {};
+  const title = requiredText(b.title, "title", 160);
+  const department = requiredText(b.department, "department", 120);
+  const location = requiredText(b.location, "location", 160);
+  const employmentType = oneOf(b.employmentType, JOB_TYPES, "employmentType");
+  const description = optionalText(b.description ?? "", "description");
+  const requirements = optionalText(b.requirements ?? "", "requirements");
+  const status = oneOf(b.status, JOB_STATUSES, "status");
+  const r = await pool.query(
+    `insert into recruitment_jobs(id,title,department,location,employment_type,description,requirements,status,created_by)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning ${RECRUITMENT_JOB_COLS}`,
+    [randomUUID(), title, department, location, employmentType, description, requirements, status, req.user!.name],
+  );
+  await audit(req.user!.name, status === "open" ? "Posted recruitment role" : "Created recruitment role", title);
+  res.status(201).json(r.rows[0]);
+}));
+
+app.patch("/api/recruitment/jobs/:id", requireRole("superadmin", "admin"), h(async (req, res) => {
+  const b = req.body ?? {};
+  const title = requiredText(b.title, "title", 160);
+  const department = requiredText(b.department, "department", 120);
+  const location = requiredText(b.location, "location", 160);
+  const employmentType = oneOf(b.employmentType, JOB_TYPES, "employmentType");
+  const description = optionalText(b.description ?? "", "description");
+  const requirements = optionalText(b.requirements ?? "", "requirements");
+  const status = oneOf(b.status, JOB_STATUSES, "status");
+  const r = await pool.query(
+    `update recruitment_jobs set title=$1,department=$2,location=$3,employment_type=$4,description=$5,
+       requirements=$6,status=$7,updated_at=now() where id=$8 returning ${RECRUITMENT_JOB_COLS}`,
+    [title, department, location, employmentType, description, requirements, status, req.params.id],
+  );
+  if (!r.rowCount) throw new HttpError(404, "Recruitment role not found");
+  await audit(req.user!.name, `Updated recruitment role (${status})`, title);
+  res.json(r.rows[0]);
+}));
+
+app.get("/api/recruitment/candidates", requireRole("superadmin", "admin"), h(async (_req, res) => {
+  const r = await pool.query(
+    `select ${RECRUITMENT_CANDIDATE_COLS} from recruitment_candidates c
+     join recruitment_jobs j on j.id=c.job_id order by c.created_at desc`,
+  );
+  res.json(r.rows);
+}));
+
+app.post("/api/recruitment/candidates", requireRole("superadmin", "admin"), h(async (req, res) => {
+  const b = req.body ?? {};
+  const jobId = requiredText(b.jobId, "jobId", 120);
+  const job = await pool.query<{ title: string; status: string }>(
+    "select title,status from recruitment_jobs where id=$1", [jobId],
+  );
+  if (!job.rowCount) throw new HttpError(404, "Recruitment role not found");
+  if (job.rows[0].status !== "open") throw badRequest("Applicants can only be added to open roles");
+  const name = requiredText(b.name, "name", 160);
+  const email = requiredText(b.email, "email", 254).toLowerCase();
+  if (!isEmail(email)) throw badRequest("Enter a valid candidate email address");
+  const phone = optionalText(b.phone ?? "", "phone", 40);
+  const source = optionalText(b.source ?? "", "source", 120);
+  const notes = optionalText(b.notes ?? "", "notes");
+  const id = randomUUID();
+  await pool.query(
+    `insert into recruitment_candidates(id,job_id,name,email,phone,source,stage,notes)
+     values($1,$2,$3,$4,$5,$6,'applied',$7)`,
+    [id, jobId, name, email, phone, source, notes],
+  );
+  await audit(req.user!.name, "Added recruitment candidate", `${name} — ${job.rows[0].title}`);
+  const r = await pool.query(
+    `select ${RECRUITMENT_CANDIDATE_COLS} from recruitment_candidates c
+     join recruitment_jobs j on j.id=c.job_id where c.id=$1`,
+    [id],
+  );
+  res.status(201).json(r.rows[0]);
+}));
+
+app.patch("/api/recruitment/candidates/:id", requireRole("superadmin", "admin"), h(async (req, res) => {
+  const b = req.body ?? {};
+  if (b.stage === undefined && b.notes === undefined) throw badRequest("Provide a candidate stage or notes");
+  const stage = b.stage === undefined ? null : oneOf(b.stage, CANDIDATE_STAGES, "stage");
+  const notes = b.notes === undefined ? null : optionalText(b.notes, "notes");
+  const changed = await pool.query<{ id: string }>(
+    `update recruitment_candidates set stage=coalesce($1,stage),notes=coalesce($2,notes),updated_at=now()
+     where id=$3 returning id`,
+    [stage, notes, req.params.id],
+  );
+  if (!changed.rowCount) throw new HttpError(404, "Candidate not found");
+  const r = await pool.query(
+    `select ${RECRUITMENT_CANDIDATE_COLS} from recruitment_candidates c
+     join recruitment_jobs j on j.id=c.job_id where c.id=$1`,
+    [req.params.id],
+  );
+  await audit(req.user!.name, stage ? `Moved candidate to ${stage}` : "Updated candidate notes", r.rows[0].name);
+  res.json(r.rows[0]);
+}));
+
+app.get("/api/recruitment/interviews", requireRole("superadmin", "admin"), h(async (_req, res) => {
+  const r = await pool.query(
+    `select ${RECRUITMENT_INTERVIEW_COLS} from recruitment_interviews i
+     join recruitment_candidates c on c.id=i.candidate_id
+     join recruitment_jobs j on j.id=c.job_id order by i.scheduled_at`,
+  );
+  res.json(r.rows);
+}));
+
+app.post("/api/recruitment/interviews", requireRole("superadmin", "admin"), h(async (req, res) => {
+  const b = req.body ?? {};
+  const candidateId = requiredText(b.candidateId, "candidateId", 120);
+  const interviewer = requiredText(b.interviewer, "interviewer", 160);
+  if (typeof b.scheduledAt !== "string" || !b.scheduledAt.trim() || Number.isNaN(Date.parse(b.scheduledAt)))
+    throw badRequest("Choose a valid interview date and time");
+  const meetingType = oneOf(b.meetingType, INTERVIEW_TYPES, "meetingType");
+  const notes = optionalText(b.notes ?? "", "notes");
+  const candidate = await pool.query<{ name: string; stage: string }>(
+    "select name,stage from recruitment_candidates where id=$1", [candidateId],
+  );
+  if (!candidate.rowCount) throw new HttpError(404, "Candidate not found");
+  if (candidate.rows[0].stage === "hired" || candidate.rows[0].stage === "rejected")
+    throw badRequest("Interviews cannot be scheduled for a hired or rejected candidate");
+  const id = randomUUID();
+  await pool.query(
+    `insert into recruitment_interviews(id,candidate_id,interviewer,scheduled_at,meeting_type,status,notes)
+     values($1,$2,$3,$4,$5,'scheduled',$6)`,
+    [id, candidateId, interviewer, new Date(b.scheduledAt).toISOString(), meetingType, notes],
+  );
+  await audit(req.user!.name, "Scheduled recruitment interview", candidate.rows[0].name);
+  const r = await pool.query(
+    `select ${RECRUITMENT_INTERVIEW_COLS} from recruitment_interviews i
+     join recruitment_candidates c on c.id=i.candidate_id
+     join recruitment_jobs j on j.id=c.job_id where i.id=$1`,
+    [id],
+  );
+  res.status(201).json(r.rows[0]);
+}));
+
+app.patch("/api/recruitment/interviews/:id", requireRole("superadmin", "admin"), h(async (req, res) => {
+  const b = req.body ?? {};
+  const status = oneOf(b.status, INTERVIEW_STATUSES, "status");
+  const notes = b.notes === undefined ? null : optionalText(b.notes, "notes");
+  const changed = await pool.query<{ candidate_name: string }>(
+    `update recruitment_interviews i set status=$1,notes=coalesce($2,i.notes),updated_at=now()
+     from recruitment_candidates c where i.candidate_id=c.id and i.id=$3 returning c.name as candidate_name`,
+    [status, notes, req.params.id],
+  );
+  if (!changed.rowCount) throw new HttpError(404, "Interview not found");
+  await audit(req.user!.name, `Marked interview ${status}`, changed.rows[0].candidate_name);
+  const r = await pool.query(
+    `select ${RECRUITMENT_INTERVIEW_COLS} from recruitment_interviews i
+     join recruitment_candidates c on c.id=i.candidate_id
+     join recruitment_jobs j on j.id=c.job_id where i.id=$1`,
+    [req.params.id],
+  );
+  res.json(r.rows[0]);
 }));
 
 /* -------------------------------------------------------------------- admin */

@@ -4,7 +4,7 @@ import type { User } from "@/domain/types";
 export const DEMO_USERS: (User & { title: string })[] = [
   {
     id: "u1",
-    name: "Dilshan Silva",
+    name: "Samantha Perera Test",
     email: "admin@hrpulse.demo",
     role: "admin",
     title: "HR Administrator",

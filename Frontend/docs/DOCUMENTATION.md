@@ -17,7 +17,7 @@ On the login page, choose a demo account and press **Sign in with Microsoft**:
 | Role | Demo email | What it can do |
 |---|---|---|
 | Super Admin | superadmin@hrpulse.demo | Everything, plus roles and audit log |
-| Admin | admin@hrpulse.demo | Employees, payroll, teacher pay, commissions, leave approval, users |
+| Admin | admin@hrpulse.demo | Employees, recruitment, payroll, teacher pay, commissions, leave approval, users |
 | Employee | dilshan@hrpulse.demo | Own dashboard, clock in/out, own attendance, own leave, own performance |
 
 Demo data is stored in the browser's `localStorage`. To reset it, clear site data for localhost.
@@ -39,6 +39,7 @@ Demo data is stored in the browser's `localStorage`. To reset it, clear site dat
 | Clock in / clock out with **location** | `components/features/ClockWidget.tsx` (browser Geolocation API). Coordinates saved on each record and shown as a map link in `/attendance` |
 | Roles: **superadmin, admin, employee** | `domain/types.ts` (`can.*` rules), `middleware.ts` (server-side route gates), sidebar filtering |
 | **Admin panel** in the same project | `/admin` (users), `/admin/roles` and `/admin/audit` (Super Admin only) |
+| **Recruitment workflow** for admins and super admins | `/recruitment`: post draft/open/closed roles, add applicants to open roles, move them through applied, screening, interview, offer, hired or rejected, schedule interviews, and mark interviews completed or cancelled. Changes are audit logged. |
 | **Microsoft-only** login | `/login`; see section 6 for wiring real Microsoft Entra ID |
 | Sidebar from your screenshot | `components/layout/Sidebar.tsx`, same sections (Overview, People, Finance, System), Leave badge, user footer with sign-out |
 
@@ -65,7 +66,7 @@ src/
 │   └─ features/      ClockWidget, ContractsPanel
 ├─ app/               Next.js routes (App Router)
 │   ├─ login/         Public
-│   ├─ (app)/         dashboard, employees, attendance, leave, performance, payroll, teachers, commissions, reports, notifications, settings
+│   ├─ (app)/         dashboard, employees, recruitment, attendance, leave, performance, payroll, teachers, commissions, reports, notifications, settings
 │   └─ admin/         users, roles, audit
 └─ middleware.ts      Auth + role gate before any page renders
 ```
@@ -97,12 +98,29 @@ All in `src/domain/policy.ts`. Change a number there and the whole UI follows.
 
 ## 4. Connecting your backend
 
-1. In `.env.local` set:
+1. For local development, set in `.env.local`:
    ```
    NEXT_PUBLIC_DATA_SOURCE=api
    NEXT_PUBLIC_API_URL=https://your-backend/api
    ```
+   For this repository's local backend, use `http://localhost:4000/api`.
 2. `src/services/api.ts` already maps every service method to an endpoint. Adjust paths or payloads to match your backend.
+
+### Deploying the frontend to Vercel
+
+Deploy `Frontend` as the Vercel project's **Root Directory**. Vercel detects Next.js and uses the existing `npm run build` script; leave the output directory at its default.
+
+Add these Vercel environment variables for the Production environment (and Preview too, if preview deployments should use the API):
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_DATA_SOURCE` | `api` |
+| `NEXT_PUBLIC_API_URL` | `/api` |
+| `HR_PULSE_API_ORIGIN` | The backend's HTTPS origin only, e.g. `https://hr-pulse-api.example.com` (no `/api` or trailing slash) |
+
+The Next.js rewrite proxies `/api/*` to that backend origin. This keeps API calls and auth cookies on the frontend domain. Redeploy after changing these values.
+
+The Express API must be deployed separately on a persistent Node.js host with PostgreSQL and persistent storage for uploads. It is not the Vercel frontend project. Configure its `FRONTEND_URL` and `API_URL` to the exact Vercel production frontend origin (for example, `https://hr-pulse.example.com`), and register `https://hr-pulse.example.com/api/auth/callback/microsoft` as the Microsoft application's production redirect URI. Do not use the backend host for `API_URL` in this proxy setup.
 
 | Area | Endpoints expected by `api.ts` |
 |---|---|
@@ -116,6 +134,7 @@ All in `src/domain/policy.ts`. Change a number there and the whole UI follows.
 | Salary | `GET /payroll/salary?month=YYYY-MM`, `POST /payroll/salary/generate`, `PUT /payroll/salary/:id` |
 | Teacher pay | `GET /payroll/teachers?month=`, `POST /payroll/teachers/generate`, `PUT /payroll/teachers/:id` |
 | Commissions | `GET/POST /commissions`, `PATCH /commissions/:id/paid`, `DELETE /commissions/:id` |
+| Recruitment | Admin/superadmin only: `GET/POST /recruitment/jobs`, `PATCH /recruitment/jobs/:id`, `GET/POST /recruitment/candidates`, `PATCH /recruitment/candidates/:id`, `GET/POST /recruitment/interviews`, `PATCH /recruitment/interviews/:id` |
 | Admin | `GET /admin/users`, `PATCH /admin/users/:id/role`, `GET /admin/audit` |
 | Notifications | `GET /notifications`, `POST /notifications/read-all` |
 
@@ -139,7 +158,7 @@ Be clear about this before going live.
 | Security headers (`next.config.mjs`) | Real: frame denial, nosniff, referrer policy, geolocation permissions |
 | Data access control | **Must be enforced on the backend.** UI hiding is convenience, not security. Every API endpoint must check the caller's role (for example employees may only read their own records) |
 | Contract files | Mock stores metadata only. In production store files in private object storage and serve short-lived signed URLs, with server-side file type and size validation and virus scanning |
-| Audit log | Mock writes entries for a few actions. Backend should log all payroll, role and contract changes |
+| Audit log | Recruitment role, candidate-stage and interview changes are recorded with payroll, role and contract changes |
 | Location tracking | Uses browser permission and is captured only at clock in/out. Check local privacy rules and tell employees what is collected |
 
 ---

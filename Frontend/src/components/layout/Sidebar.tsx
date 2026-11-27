@@ -38,11 +38,11 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/20 bg-brand-500 transition-transform lg:translate-x-0",
+        "fixed inset-y-3 left-3 z-40 flex w-64 flex-col rounded-3xl border border-white/20 bg-brand-500 shadow-xl transition-transform lg:inset-y-4 lg:left-4 lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full",
       )}
     >
-      <div className="flex items-center gap-3 border-b border-white/20 px-5 py-5">
+      <div className="mx-3 mt-3 flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-4 shadow-sm">
         <Image src="/logo-deep-royal-blue.svg" alt="" width={40} height={40} priority className="brightness-0 invert" />
         <div>
           <p className="font-semibold leading-tight text-slate-50">HR Pulse</p>
@@ -56,7 +56,7 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
           if (!items.length) return null;
           return (
             <div key={g.title}>
-              <p className="mb-2 px-3 text-[11px] font-medium uppercase tracking-widest text-slate-50/70">{g.title}</p>
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-50/70">{g.title}</p>
               <ul className="space-y-1">
                 {items.map((i) => {
                   const active = path === i.href || (i.href !== "/dashboard" && path.startsWith(i.href));
@@ -68,7 +68,7 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
                         onClick={onNavigate}
                         className={cn(
                           "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-                          active ? "bg-white text-brand-700" : "text-slate-50 hover:bg-white/10 hover:text-slate-50",
+                          active ? "bg-white text-brand-700 shadow-sm" : "text-slate-50 hover:bg-white/10 hover:text-white",
                         )}
                       >
                         <i.icon size={18} />
@@ -84,13 +84,13 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
         })}
       </nav>
 
-      <div className="border-t border-white/20 p-3">
+      <div className="p-3">
         {signOutError && (
           <p role="alert" className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {signOutError}
           </p>
         )}
-        <div className="flex items-center gap-3 rounded-xl bg-white/10 p-3">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-3 shadow-sm">
           <Avatar name={user.name} src={user.avatarUrl} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-50">{withYouLabel(user.name, true)}</p>
@@ -120,7 +120,7 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
                 router.refresh();
               }
             }}
-            className="rounded-lg p-2 text-slate-50/70 hover:bg-white/10 hover:text-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg p-2 text-slate-50/70 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             <LogOut size={16} />
           </button>

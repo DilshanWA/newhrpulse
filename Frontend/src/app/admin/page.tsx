@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, ShieldCheck, Users } from "lucide-react";
+import { Briefcase, ClipboardList, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import { can } from "@/domain/types";
@@ -11,6 +11,7 @@ export default function AdminHome() {
   if (!user) return null;
   const tiles = [
     { href: "/admin/users", icon: Users, title: "Users", text: "See all accounts and their roles.", show: true },
+    { href: "/recruitment", icon: Briefcase, title: "Recruitment", text: "Post open roles and manage candidates and interviews.", show: can.manageEmployees(user.role) },
     { href: "/admin/roles", icon: ShieldCheck, title: "Roles & permissions", text: "Promote or demote admins (Super Admin only).", show: can.manageRoles(user.role) },
     { href: "/admin/audit", icon: ClipboardList, title: "Audit log", text: "Who changed what and when (Super Admin only).", show: can.viewAudit(user.role) },
   ].filter((t) => t.show);

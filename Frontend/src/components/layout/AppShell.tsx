@@ -52,14 +52,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <Sidebar open={open} onNavigate={() => setOpen(false)} />
-      {open && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setOpen(false)} />}
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:px-8">
+      {open && <div className="fixed inset-0 z-30 bg-slate-900/30 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)} />}
+      <div className="lg:pl-72">
+        <header className="sticky top-3 z-20 mx-3 flex h-16 items-center justify-between rounded-2xl border border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur lg:top-4 lg:ml-0 lg:mr-4 lg:px-6">
           <button className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu size={20} />
           </button>
-          <p className="hidden text-sm text-slate-400 lg:block">
-            Welcome back, <span className="font-medium text-white">{withYouLabel(user.name.split(" ")[0], true)}</span>
+          <p className="hidden text-sm text-slate-500 lg:block">
+            Welcome back, <span className="font-medium text-slate-900">{withYouLabel(user.name.split(" ")[0], true)}</span>
           </p>
           <LiveNotifications />
         </header>

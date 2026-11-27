@@ -5,8 +5,9 @@
 import { API_BASE, http } from "@/lib/http";
 import { authClient, startMicrosoftSignIn } from "@/lib/auth-client";
 import type {
-  AttendanceRecord, AuditEntry, CommissionEntry, ContractDoc, Employee, LeaveRequest,
-  Notice, PerformanceReview, SalaryLine, TeacherPayLine, User,
+  AttendanceRecord, AuditEntry, CommissionEntry, ContractDoc, Employee, LeaveRequest, Notice,
+  PerformanceReview, RecruitmentCandidate, RecruitmentInterview, RecruitmentJob, SalaryLine,
+  TeacherPayLine, User,
 } from "@/domain/types";
 import type { EmailMonthResult, SalaryMonthUpdate, Services } from "./types";
 
@@ -93,6 +94,17 @@ export const apiServices: Services = {
     setRole: (id, role) => http.patch<void>(`/admin/users/${id}/role`, { role }),
     setActive: (id, isActive) => http.patch<void>(`/admin/users/${id}/active`, { isActive }),
     audit: () => http.get<AuditEntry[]>("/admin/audit"),
+  },
+  recruitment: {
+    jobs: () => http.get<RecruitmentJob[]>("/recruitment/jobs"),
+    createJob: (job) => http.post<RecruitmentJob>("/recruitment/jobs", job),
+    updateJob: (id, job) => http.patch<RecruitmentJob>(`/recruitment/jobs/${id}`, job),
+    candidates: () => http.get<RecruitmentCandidate[]>("/recruitment/candidates"),
+    createCandidate: (candidate) => http.post<RecruitmentCandidate>("/recruitment/candidates", candidate),
+    updateCandidate: (id, patch) => http.patch<RecruitmentCandidate>(`/recruitment/candidates/${id}`, patch),
+    interviews: () => http.get<RecruitmentInterview[]>("/recruitment/interviews"),
+    createInterview: (interview) => http.post<RecruitmentInterview>("/recruitment/interviews", interview),
+    updateInterview: (id, patch) => http.patch<RecruitmentInterview>(`/recruitment/interviews/${id}`, patch),
   },
   profile: {
     uploadAvatar: (image) => {

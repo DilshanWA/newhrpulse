@@ -145,6 +145,53 @@ export interface CommissionEntry {
   note?: string;
 }
 
+export type RecruitmentJobStatus = "draft" | "open" | "closed";
+export type RecruitmentEmploymentType = "full_time" | "part_time" | "contract" | "internship";
+export interface RecruitmentJob {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  employmentType: RecruitmentEmploymentType;
+  description: string;
+  requirements: string;
+  status: RecruitmentJobStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CandidateStage = "applied" | "screening" | "interview" | "offer" | "hired" | "rejected";
+export interface RecruitmentCandidate {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  name: string;
+  email: string;
+  phone: string;
+  source: string;
+  stage: CandidateStage;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RecruitmentInterviewStatus = "scheduled" | "completed" | "cancelled";
+export type RecruitmentMeetingType = "video" | "phone" | "onsite";
+export interface RecruitmentInterview {
+  id: string;
+  candidateId: string;
+  candidateName: string;
+  jobTitle: string;
+  interviewer: string;
+  scheduledAt: string;
+  meetingType: RecruitmentMeetingType;
+  status: RecruitmentInterviewStatus;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuditEntry {
   id: string;
   at: string;

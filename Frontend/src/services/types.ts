@@ -4,7 +4,8 @@
  */
 import type {
   AttendanceRecord, AuditEntry, CommissionEntry, ContractDoc, Employee, GeoPoint,
-  LeaveRequest, LeaveStatus, Notice, PerformanceReview, Role, SalaryLine, TeacherPayLine, User,
+  LeaveRequest, LeaveStatus, Notice, PerformanceReview, RecruitmentCandidate, RecruitmentInterview,
+  RecruitmentJob, RecruitmentInterviewStatus, Role, SalaryLine, TeacherPayLine, User,
 } from "@/domain/types";
 
 export interface AuthService {
@@ -108,6 +109,18 @@ export interface AdminService {
   audit(): Promise<AuditEntry[]>;
 }
 
+export interface RecruitmentService {
+  jobs(): Promise<RecruitmentJob[]>;
+  createJob(job: Omit<RecruitmentJob, "id" | "createdBy" | "createdAt" | "updatedAt">): Promise<RecruitmentJob>;
+  updateJob(id: string, job: Omit<RecruitmentJob, "id" | "createdBy" | "createdAt" | "updatedAt">): Promise<RecruitmentJob>;
+  candidates(): Promise<RecruitmentCandidate[]>;
+  createCandidate(candidate: Omit<RecruitmentCandidate, "id" | "jobTitle" | "stage" | "createdAt" | "updatedAt">): Promise<RecruitmentCandidate>;
+  updateCandidate(id: string, patch: Partial<Pick<RecruitmentCandidate, "stage" | "notes">>): Promise<RecruitmentCandidate>;
+  interviews(): Promise<RecruitmentInterview[]>;
+  createInterview(interview: Omit<RecruitmentInterview, "id" | "candidateName" | "jobTitle" | "status" | "createdAt" | "updatedAt">): Promise<RecruitmentInterview>;
+  updateInterview(id: string, patch: { status: RecruitmentInterviewStatus; notes?: string }): Promise<RecruitmentInterview>;
+}
+
 export interface NoticeService {
   list(): Promise<Notice[]>;
   markAllRead(): Promise<void>;
@@ -130,5 +143,6 @@ export interface Services {
   payroll: PayrollService;
   commissions: CommissionService;
   admin: AdminService;
+  recruitment: RecruitmentService;
   notices: NoticeService;
 }

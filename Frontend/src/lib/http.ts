@@ -1,8 +1,10 @@
 /**
  * HTTP client used by the "api" implementation of each service.
- * Point NEXT_PUBLIC_API_URL at your backend and set NEXT_PUBLIC_DATA_SOURCE=api.
+ * Set NEXT_PUBLIC_DATA_SOURCE=api; Vercel uses the same-origin /api proxy.
  */
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" ? "/api" : "http://localhost:4000/api");
 
 /** API-relative paths ("/avatars/…") become absolute; data:/blob:/http URLs pass through. */
 export function assetUrl(p?: string | null) {

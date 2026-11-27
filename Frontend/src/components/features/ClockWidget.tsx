@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, LogIn, LogOut, MapPin } from "lucide-react";
+import { CheckCircle2, Clock3, Loader2, LogIn, LogOut, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, Field, Modal } from "@/components/ui";
 import { WORK_POLICY, isEarlyClockOut } from "@/domain/policy";
@@ -118,39 +118,54 @@ export function ClockWidget({ onChange }: { onChange?: () => void }) {
 
   return (
     <>
-      <Card className="relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-brand-500/20 blur-3xl" />
+      <Card className="relative min-h-full overflow-hidden p-6 sm:p-8">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-brand-500/20 blur-3xl sm:h-56 sm:w-56" />
         <div className="relative">
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-            Today · {now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TIME_ZONE })}
-          </p>
-          <p className="mt-2 font-mono text-4xl font-semibold tracking-tight text-white">{fmtClock(now)}</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                <span className="h-2 w-2 rounded-full bg-brand-500" />
+                Today
+              </p>
+              <p className="mt-2 text-sm font-medium text-slate-500">
+                {now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TIME_ZONE })}
+              </p>
+            </div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 sm:h-14 sm:w-14">
+              <Clock3 size={24} />
+            </div>
+          </div>
 
-          <div className="mt-4 flex gap-6 text-sm">
-            <div>
-              <p className="text-slate-400">Clock in</p>
-              <p className="font-medium text-white">{fmtTime(rec?.clockIn)}</p>
+          <p className="mt-4 break-words font-mono text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl xl:text-6xl">{fmtClock(now)}</p>
+
+          <div className="mt-6 grid grid-cols-3 gap-2 text-sm sm:gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4">
+              <p className="text-xs font-medium text-slate-500">Clock in</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{fmtTime(rec?.clockIn)}</p>
             </div>
-            <div>
-              <p className="text-slate-400">Clock out</p>
-              <p className="font-medium text-white">{fmtTime(rec?.clockOut)}</p>
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4">
+              <p className="text-xs font-medium text-slate-500">Clock out</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{fmtTime(rec?.clockOut)}</p>
             </div>
-            <div>
-              <p className="text-slate-400">Shift ends</p>
-              <p className="font-medium text-white">{fmtHm(WORK_POLICY.shiftEnd)}</p>
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4">
+              <p className="text-xs font-medium text-slate-500">Shift ends</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900 sm:text-base">{fmtHm(WORK_POLICY.shiftEnd)}</p>
             </div>
           </div>
 
           {state !== "done" ? (
-            <Button onClick={onPress} disabled={isMobileDevice || busy || todayLoading || !!todayError} variant={state === "out" ? "primary" : "danger"} className="mt-5 w-full">
+            <Button onClick={onPress} disabled={isMobileDevice || busy || todayLoading || !!todayError} variant={state === "out" ? "primary" : "danger"} className="mt-6 min-h-12 w-full text-base">
               {busy || todayLoading ? <Loader2 size={16} className="animate-spin" /> : state === "out" ? <LogIn size={16} /> : <LogOut size={16} />}
               {busy ? "Getting location…" : todayLoading ? "Loading attendance…" : state === "out" ? "Clock in" : "Clock out"}
             </Button>
           ) : (
-            <p className="mt-5 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">You&apos;re done for today. Great work!</p>
+            <p className="mt-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-medium text-emerald-700">
+              <CheckCircle2 size={20} className="shrink-0" />
+              You&apos;re done for today. Great work!
+            </p>
           )}
           {isMobileDevice && (
-            <p role="status" className="mt-2 text-sm text-slate-400">Clock in and clock out are disabled on mobile phones and tablets. Use a desktop browser for attendance.</p>
+            <p role="status" className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">Clock in and clock out are disabled on mobile phones and tablets. Use a desktop browser for attendance.</p>
           )}
 
           {todayError && (
@@ -162,15 +177,15 @@ export function ClockWidget({ onChange }: { onChange?: () => void }) {
             </div>
           )}
           {(rec?.inLocation || rec?.outLocation) && (
-            <div className="mt-4 space-y-1 text-xs text-slate-500">
-              {rec.inLocation && <p className="flex items-start gap-1"><MapPin size={12} className="mt-0.5 shrink-0" /> In: {locationLabel(rec.inLocation)}</p>}
-              {rec.outLocation && <p className="flex items-start gap-1"><MapPin size={12} className="mt-0.5 shrink-0" /> Out: {locationLabel(rec.outLocation)}</p>}
+            <div className="mt-5 space-y-2 border-t border-slate-200 pt-4 text-sm text-slate-600">
+              {rec.inLocation && <p className="flex items-start gap-2"><MapPin size={15} className="mt-0.5 shrink-0 text-brand-600" /> In: {locationLabel(rec.inLocation)}</p>}
+              {rec.outLocation && <p className="flex items-start gap-2"><MapPin size={15} className="mt-0.5 shrink-0 text-brand-600" /> Out: {locationLabel(rec.outLocation)}</p>}
             </div>
           )}
-          {err && <p className="mt-3 text-sm text-rose-300">{err}</p>}
-          {rec?.earlyReason && <p className="mt-3 text-xs text-amber-300">Early clock-out reason: {rec.earlyReason}</p>}
-          {locationWarning && <p role="status" className="mt-3 text-xs text-amber-300">{locationWarning}</p>}
-          <p className="mt-3 text-[11px] text-slate-500">Your location is captured at clock in/out for attendance verification.</p>
+          {err && <p className="mt-3 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{err}</p>}
+          {rec?.earlyReason && <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">Early clock-out reason: {rec.earlyReason}</p>}
+          {locationWarning && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{locationWarning}</p>}
+          <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">Your location is captured at clock in/out for attendance verification.</p>
         </div>
       </Card>
 

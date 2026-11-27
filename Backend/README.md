@@ -11,7 +11,8 @@ Express + TypeScript + PostgreSQL backend for the HR Pulse frontend.
 5. Configure a redirect URI:
    `http://localhost:4000/api/auth/callback/microsoft`
 6. Set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and the organization's tenant GUID in `MICROSOFT_TENANT_ID`.
-7. To show readable attendance locations, enable the Google Geocoding API and set `GOOGLE_MAPS_API_KEY` in `Backend/.env`. Restrict this key to the Geocoding API and your backend's IP address.
+7. To send payslip emails, add the Microsoft Graph **Mail.Send** application permission to the Entra app and grant tenant admin consent. Set `MAIL_FROM_ADDRESS` to the sender mailbox's exact Entra UPN in that tenant (not an email alias).
+8. To show readable attendance locations, enable the Google Geocoding API and set `GOOGLE_MAPS_API_KEY` in `Backend/.env`. Restrict this key to the Geocoding API and your backend's IP address.
 
 ```bash
 npm install
@@ -21,6 +22,8 @@ npm run dev
 
 The API runs at `http://localhost:4000`. PostgreSQL is hosted by your configured database provider.
 The server also applies the app and Better Auth migrations at startup, so they are never missing.
+
+Payslip email uses Microsoft Graph with the app's client credentials and `MAIL_FROM_ADDRESS` (or the legacy `MAIL_FROM` address); SMTP is not used. The sender display name comes from the configured Microsoft 365 mailbox. If Graph returns `ErrorInvalidUser`, verify that this setting is the mailbox's exact Entra UPN and that it is in the app's tenant.
 
 To load demo users and data into a development database, run:
 
@@ -75,13 +78,21 @@ set `NODE_ENV=production`, `FRONTEND_URL` to the exact HTTPS frontend origin, an
 `API_URL` to the exact HTTPS API origin (both without a path or trailing slash).
 Production startup fails if these origins are missing or not HTTPS.
 
+When the frontend is deployed to Vercel using the same-origin `/api` proxy documented
+in `Frontend/docs/DOCUMENTATION.md`, set both `FRONTEND_URL` and `API_URL` to the
+exact Vercel frontend origin. Register
+`<FRONTEND_URL>/api/auth/callback/microsoft` as the production Microsoft redirect
+URI. The API itself must run on a persistent Node.js host: it starts a long-lived
+Express listener and stores contract uploads on disk.
+
 ## Security
 
 - Better Auth manages Microsoft OAuth sign-in and database-backed, httpOnly sessions. Sessions persist across browser restarts and refresh while in use; inactive sessions expire after 30 days. No Azure SDK or Azure-hosted authentication service is used; Microsoft app credentials are required for OAuth.
 - Attendance stores device GPS coordinates, reported accuracy, and Google's exempt place ID. The readable address is returned for the immediate clock action and is not stored; if lookup fails, the record is still saved with coordinates.
 - The backend maps the authenticated Microsoft email to an existing HR Pulse user and loads its role from PostgreSQL.
-- Microsoft requests only the OpenID Connect scopes needed for sign-in; profile-photo/Graph access is disabled. Remove any stale Microsoft Graph `User.Read` or `offline_access` permissions if they are not needed by another app feature.
+- Microsoft sign-in requests only the OpenID Connect scopes needed for sign-in. Payslip email separately uses app-only Microsoft Graph access with the `Mail.Send` application permission.
 - API routes enforce roles and employee ownership server-side.
+- Recruitment endpoints are limited to admins and superadmins. Open roles accept candidates, and role, candidate-stage and interview changes are recorded in the audit log.
 - Contract uploads are limited to 10 MB and approved file extensions.
 - Only Microsoft accounts ending in `studyingermany.lk`, `german.lk`, or `germanexams.lk` are accepted.
 - Private contract files are stored outside the public frontend directory.

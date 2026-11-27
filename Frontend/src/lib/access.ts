@@ -1,6 +1,6 @@
 import type { Role } from "@/domain/types";
 
-const ADMIN_ONLY = ["/employees", "/payroll", "/teachers", "/commissions", "/reports", "/admin"];
+const ADMIN_ONLY = ["/employees", "/payroll", "/teachers", "/commissions", "/reports", "/admin", "/recruitment"];
 const SUPERADMIN_ONLY = ["/admin/roles", "/admin/audit"];
 
 const under = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);

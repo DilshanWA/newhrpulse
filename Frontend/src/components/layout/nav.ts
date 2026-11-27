@@ -1,4 +1,4 @@
-import { BarChart3, Bell, CalendarDays, Clock, DollarSign, GraduationCap, HandCoins, LayoutDashboard, Settings, ShieldCheck, Target, Users, Wallet, type LucideIcon } from "lucide-react";
+import { BarChart3, Bell, Briefcase, CalendarDays, Clock, DollarSign, GraduationCap, HandCoins, LayoutDashboard, Settings, ShieldCheck, Target, Users, Wallet, type LucideIcon } from "lucide-react";
 import type { Role } from "@/domain/types";
 
 export interface NavItem {
@@ -22,6 +22,7 @@ export const NAV: NavGroup[] = [
     title: "People",
     items: [
       { href: "/employees", label: "Employees", icon: Users, roles: STAFF },
+      { href: "/recruitment", label: "Recruitment", icon: Briefcase, roles: STAFF },
       { href: "/attendance", label: "Attendance", icon: Clock, roles: ALL },
       { href: "/leave", label: "Leave", icon: CalendarDays, roles: ALL, badgeKey: "leave" },
       { href: "/performance", label: "Performance", icon: Target, roles: ALL },

@@ -1,5 +1,8 @@
 import { DEMO_USERS } from "@/data/seed";
-import type { AttendanceRecord, AuditEntry, CommissionEntry, ContractDoc, Employee, LeaveRequest, Notice, SalaryLine, TeacherPayLine, User } from "@/domain/types";
+import type {
+  AttendanceRecord, AuditEntry, CommissionEntry, ContractDoc, Employee, LeaveRequest, Notice,
+  RecruitmentCandidate, RecruitmentInterview, RecruitmentJob, SalaryLine, TeacherPayLine, User,
+} from "@/domain/types";
 import { isEarlyClockOut, validateLeave } from "@/domain/policy";
 import { emit } from "@/lib/realtime";
 import { blobToDataUrl } from "@/lib/image";
@@ -23,6 +26,9 @@ const leave = createStore<LeaveRequest>("leave", () => []);
 const salary = createStore<SalaryLine>("salary", () => []);
 const teacherPay = createStore<TeacherPayLine>("teacherPay", () => []);
 const commissions = createStore<CommissionEntry>("commissions", () => []);
+const recruitmentJobs = createStore<RecruitmentJob>("recruitmentJobs", () => []);
+const recruitmentCandidates = createStore<RecruitmentCandidate>("recruitmentCandidates", () => []);
+const recruitmentInterviews = createStore<RecruitmentInterview>("recruitmentInterviews", () => []);
 const audit = createStore<AuditEntry>("audit", () => []);
 const notices = createStore<Notice>("notices", () => []);
 const users = createStore<User>("users", () => DEMO_USERS.map(({ title: _t, ...u }) => u));
@@ -44,6 +50,14 @@ const mockFiles = new Map<string, Blob>();
 
 const log = (actor: string, action: string, target: string) =>
   audit.write([{ id: uid(), at: new Date().toISOString(), actor, action, target }, ...audit.read()]);
+
+function recruitmentActor() {
+  const user = readClientSession();
+  if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+    throw new Error("Only admins and super admins can manage recruitment.");
+  }
+  return user;
+}
 
 export const mockServices: Services = {
   auth: {
@@ -285,6 +299,96 @@ export const mockServices: Services = {
       await delay(null);
     },
     audit: async () => delay(audit.read()),
+  },
+
+  recruitment: {
+    async jobs() {
+      recruitmentActor();
+      const order = { open: 0, draft: 1, closed: 2 };
+      return delay([...recruitmentJobs.read()].sort((a, b) => order[a.status] - order[b.status] || b.createdAt.localeCompare(a.createdAt)));
+    },
+    async createJob(job) {
+      const actor = recruitmentActor();
+      const now = new Date().toISOString();
+      const created: RecruitmentJob = { ...job, id: uid(), createdBy: actor.name, createdAt: now, updatedAt: now };
+      recruitmentJobs.write([created, ...recruitmentJobs.read()]);
+      log(actor.name, created.status === "open" ? "Posted recruitment role" : "Created recruitment role", created.title);
+      return delay(created);
+    },
+    async updateJob(id, patch) {
+      const actor = recruitmentActor();
+      const existing = recruitmentJobs.read().find((j) => j.id === id);
+      if (!existing) throw new Error("Recruitment role not found.");
+      const updated = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+      const candidateIds = recruitmentCandidates.read().filter((c) => c.jobId === id).map((c) => c.id);
+      recruitmentJobs.write(recruitmentJobs.read().map((j) => j.id === id ? updated : j));
+      recruitmentCandidates.write(recruitmentCandidates.read().map((c) =>
+        c.jobId === id ? { ...c, jobTitle: updated.title } : c,
+      ));
+      recruitmentInterviews.write(recruitmentInterviews.read().map((i) =>
+        candidateIds.includes(i.candidateId) ? { ...i, jobTitle: updated.title } : i,
+      ));
+      log(actor.name, `Updated recruitment role (${updated.status})`, updated.title);
+      return delay(updated);
+    },
+    async candidates() {
+      recruitmentActor();
+      return delay([...recruitmentCandidates.read()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    },
+    async createCandidate(candidate) {
+      const actor = recruitmentActor();
+      const job = recruitmentJobs.read().find((j) => j.id === candidate.jobId);
+      if (!job) throw new Error("Recruitment role not found.");
+      if (job.status !== "open") throw new Error("Applicants can only be added to open roles.");
+      if (recruitmentCandidates.read().some((c) => c.jobId === job.id && c.email.toLowerCase() === candidate.email.toLowerCase())) {
+        throw new Error("This candidate is already listed for the role.");
+      }
+      const now = new Date().toISOString();
+      const created: RecruitmentCandidate = {
+        ...candidate, id: uid(), jobTitle: job.title, stage: "applied", createdAt: now, updatedAt: now,
+      };
+      recruitmentCandidates.write([created, ...recruitmentCandidates.read()]);
+      log(actor.name, "Added recruitment candidate", `${created.name} — ${job.title}`);
+      return delay(created);
+    },
+    async updateCandidate(id, patch) {
+      const actor = recruitmentActor();
+      const existing = recruitmentCandidates.read().find((c) => c.id === id);
+      if (!existing) throw new Error("Candidate not found.");
+      const updated = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+      recruitmentCandidates.write(recruitmentCandidates.read().map((c) => c.id === id ? updated : c));
+      log(actor.name, patch.stage ? `Moved candidate to ${patch.stage}` : "Updated candidate notes", updated.name);
+      return delay(updated);
+    },
+    async interviews() {
+      recruitmentActor();
+      return delay([...recruitmentInterviews.read()].sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)));
+    },
+    async createInterview(interview) {
+      const actor = recruitmentActor();
+      const candidate = recruitmentCandidates.read().find((c) => c.id === interview.candidateId);
+      if (!candidate) throw new Error("Candidate not found.");
+      if (candidate.stage === "hired" || candidate.stage === "rejected") {
+        throw new Error("Interviews cannot be scheduled for a hired or rejected candidate.");
+      }
+      if (Number.isNaN(Date.parse(interview.scheduledAt))) throw new Error("Choose a valid interview date and time.");
+      const created: RecruitmentInterview = {
+        ...interview, id: uid(), candidateName: candidate.name, jobTitle: candidate.jobTitle,
+        status: "scheduled", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+      recruitmentInterviews.write([created, ...recruitmentInterviews.read()]);
+      log(actor.name, "Scheduled recruitment interview", candidate.name);
+      return delay(created);
+    },
+    async updateInterview(id, patch) {
+      const actor = recruitmentActor();
+      const existing = recruitmentInterviews.read().find((i) => i.id === id);
+      if (!existing) throw new Error("Interview not found.");
+      const updated = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+      recruitmentInterviews.write(recruitmentInterviews.read().map((i) => i.id === id ? updated : i));
+      log(actor.name, `Marked interview ${patch.status}`, existing.candidateName);
+      return delay(updated);
+    },
   },
 
   profile: {

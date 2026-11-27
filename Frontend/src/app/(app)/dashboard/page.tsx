@@ -35,17 +35,28 @@ export default function DashboardPage() {
 
   const payrollTotal = sal.reduce((s, l) => s + salaryNet(l), 0) + tp.reduce((s, l) => s + teacherNet(l), 0);
   const unpaid = comm.filter((c) => c.status === "pending");
-  const byDay = Object.entries(
-    att.reduce<Record<string, number>>((m, a) => ((m[a.date] = (m[a.date] ?? 0) + 1), m), {}),
-  )
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-7);
+  const attendanceByDay = att.reduce<Record<string, Set<string>>>((counts, record) => {
+    if (!counts[record.date]) counts[record.date] = new Set();
+    counts[record.date].add(record.employeeId);
+    return counts;
+  }, {});
+  const today = new Date();
+  const byDay = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6 + index);
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return {
+      label: new Intl.DateTimeFormat("en-US", { weekday: "short", day: "numeric" }).format(date),
+      value: attendanceByDay[dateKey]?.size ?? 0,
+    };
+  });
 
   return (
     <>
       <PageHeader title="Dashboard" subtitle={isStaff ? "Company overview" : "Your day at a glance"} />
-      <div className="grid gap-5 lg:grid-cols-3">
-        <ClockWidget />
+      <div className="grid gap-5 lg:grid-cols-4">
+        <div className="lg:col-span-2">
+          <ClockWidget />
+        </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:col-span-2">
           {isStaff ? (
             <>
@@ -71,15 +82,20 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <Card className="lg:col-span-2">
-          <h3 className="mb-4 font-semibold text-white">{isStaff ? "Check-ins · last 7 days" : "My attendance · last 7 days"}</h3>
-          {byDay.length ? (
+        <Card className="lg:col-span-3">
+          <h3 className="font-semibold text-white">{isStaff ? "Employee check-ins" : "My attendance"}</h3>
+          <p className="mb-4 mt-1 text-sm text-slate-500">
+            {isStaff ? "Company-wide employees checked in each day · last 7 days" : "Your attendance each day · last 7 days"}
+          </p>
+          {byDay.some(({ value }) => value > 0) ? (
             <>
-              <BarChart data={byDay.map(([d, v]) => ({ label: d, value: v }))} />
-              <ChartLabels labels={byDay.map(([d]) => d.slice(5))} />
+              <BarChart data={byDay} />
+              <ChartLabels labels={byDay.map(({ label }) => label)} />
             </>
           ) : (
-            <p className="py-8 text-center text-sm text-slate-400">No attendance yet.</p>
+            <p className="py-8 text-center text-sm text-slate-400">
+              {isStaff ? "No employees checked in during the last 7 days." : "You have no attendance records in the last 7 days."}
+            </p>
           )}
         </Card>
 

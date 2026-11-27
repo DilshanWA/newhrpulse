@@ -1,20 +1,26 @@
-/** Dependency-free SVG bar chart. Swap for Recharts/ECharts if desired. */
+/** Dependency-free bar chart. */
 export function BarChart({ data, height = 160 }: { data: { label: string; value: number }[]; height?: number }) {
   const max = Math.max(1, ...data.map((d) => d.value));
-  const w = 100 / Math.max(1, data.length);
   return (
-    <svg viewBox={`0 0 100 ${height / 2}`} preserveAspectRatio="none" className="w-full" style={{ height }} role="img" aria-label="Bar chart">
-      <defs>
-        <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#456ac7" />
-          <stop offset="100%" stopColor="#01279b" />
-        </linearGradient>
-      </defs>
-      {data.map((d, i) => {
-        const h = (d.value / max) * (height / 2 - 10);
-        return <rect key={d.label} x={i * w + w * 0.2} y={height / 2 - h} width={w * 0.6} height={h} rx="1.2" fill="url(#bar)" opacity="0.9" />;
-      })}
-    </svg>
+    <div
+      className="flex w-full items-end gap-2"
+      style={{ height }}
+      role="img"
+      aria-label={`Bar chart: ${data.map(({ label, value }) => `${label}: ${value}`).join(", ")}`}
+    >
+      {data.map(({ label, value }) => (
+        <div key={label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2" title={`${label}: ${value}`}>
+          <span className="text-xs font-medium text-slate-700">{value}</span>
+          <div className="flex w-full flex-1 items-end justify-center">
+            <div
+              aria-hidden="true"
+              className={`w-3/5 max-w-12 rounded-t-md transition-all ${value ? "bg-brand-500" : "bg-slate-200"}`}
+              style={{ height: `${value ? Math.max(6, (value / max) * 100) : 2}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 export const ChartLabels = ({ labels }: { labels: string[] }) => (

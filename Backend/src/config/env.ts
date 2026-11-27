@@ -7,9 +7,9 @@ export const env = {
   googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY?.trim() ?? "",
   /** Sent to OpenStreetMap's geocoder (used when there is no Google key) so they can contact you about heavy use. */
   geocoderContactEmail: process.env.GEOCODER_CONTACT_EMAIL?.trim() ?? "",
-  microsoftTenantId: process.env.MICROSOFT_TENANT_ID ?? process.env.AZURE_AD_TENANT_ID ?? "",
-  microsoftClientId: process.env.MICROSOFT_CLIENT_ID ?? process.env.AZURE_AD_CLIENT_ID ?? "",
-  microsoftClientSecret: process.env.MICROSOFT_CLIENT_SECRET ?? process.env.AZURE_AD_CLIENT_SECRET ?? "",
+  microsoftTenantId: process.env.MICROSOFT_TENANT_ID?.trim() || process.env.AZURE_AD_TENANT_ID?.trim() || "",
+  microsoftClientId: process.env.MICROSOFT_CLIENT_ID?.trim() || process.env.AZURE_AD_CLIENT_ID?.trim() || "",
+  microsoftClientSecret: process.env.MICROSOFT_CLIENT_SECRET?.trim() || process.env.AZURE_AD_CLIENT_SECRET?.trim() || "",
 };
 
 export const trustedFrontendOrigins = [

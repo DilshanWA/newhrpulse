@@ -133,6 +133,46 @@ export async function migrate() {
       action text not null,
       target text not null
     );
+    create table if not exists recruitment_jobs (
+      id text primary key,
+      title text not null,
+      department text not null,
+      location text not null,
+      employment_type text not null check (employment_type in ('full_time','part_time','contract','internship')),
+      description text not null default '',
+      requirements text not null default '',
+      status text not null check (status in ('draft','open','closed')),
+      created_by text not null,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists recruitment_candidates (
+      id text primary key,
+      job_id text not null references recruitment_jobs(id),
+      name text not null,
+      email text not null,
+      phone text not null default '',
+      source text not null default '',
+      stage text not null check (stage in ('applied','screening','interview','offer','hired','rejected')),
+      notes text not null default '',
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists recruitment_interviews (
+      id text primary key,
+      candidate_id text not null references recruitment_candidates(id) on delete cascade,
+      interviewer text not null,
+      scheduled_at timestamptz not null,
+      meeting_type text not null check (meeting_type in ('video','phone','onsite')),
+      status text not null check (status in ('scheduled','completed','cancelled')),
+      notes text not null default '',
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create unique index if not exists recruitment_candidate_job_email_idx on recruitment_candidates(job_id, lower(email));
+    create index if not exists recruitment_jobs_status_idx on recruitment_jobs(status, created_at desc);
+    create index if not exists recruitment_candidates_job_idx on recruitment_candidates(job_id, created_at desc);
+    create index if not exists recruitment_interviews_scheduled_idx on recruitment_interviews(scheduled_at);
     create index if not exists attendance_employee_idx on attendance(employee_id, date);
     create index if not exists leave_employee_idx on leave_requests(employee_id);
     create index if not exists users_email_lower_idx on users(lower(email));
